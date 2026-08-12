@@ -1,0 +1,30 @@
+{
+  "name": "warp-run-server",
+  "version": "1.0.0",
+  "description": "Warp Run Server-side repo",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Michal-Delikat/warp-run-server.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Michal-Delikat/warp-run-server/issues"
+  },
+  "homepage": "https://github.com/Michal-Delikat/warp-run-server#readme",
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
