@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import { eq } from "drizzle-orm";
 import { db } from "./db/index.ts";
 import { players, ships, planets } from "./db/schema.ts";
@@ -6,6 +7,7 @@ import { resolveArrivedShips } from "./db/resolveArrivals.ts";
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 const PORT = process.env.PORT || 3000;
 
 app.get("/health", (req, res) => {

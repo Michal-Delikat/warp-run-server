@@ -5,6 +5,7 @@ export const players = pgTable("players", {
     email: varchar("email", { length: 255 }).notNull().unique(),
     username: varchar("username", { length: 50 }).notNull().unique(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
+    cash: integer("cash").default(3000)
 });
 
 export const planets = pgTable("planets", {
