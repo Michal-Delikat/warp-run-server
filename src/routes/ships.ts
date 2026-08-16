@@ -13,8 +13,9 @@ router.get("/me/ships", requireAuth, async (req, res) => {
   const playerShips = await db.query.ships.findMany({
     where: eq(ships.playerId, req.playerId!),
     with: {
-      currentPlanet: true,
-      destinationPlanet: true,
+      currentPlanet:              { columns: { id: true, name: true } },
+      destinationPlanet:          { columns: { id: true, name: true } },
+      cargo: { with: { resource:  { columns: { id: true, name: true } } } },
     },
   });
 
