@@ -26,6 +26,7 @@ export const ships = pgTable("ships", {
     name: varchar("name", { length: 100 }).notNull(),
 
     currentPlanetId: uuid("current_planet_id").references(() => planets.id),
+    departurePlanetId: uuid("departure_planet_id").references(() => planets.id),
     destinationPlanetId: uuid("destination_planet_id").references(() => planets.id),
     departedAt: timestamp("departed_at"),
     arrivalAt: timestamp("arrival_at"),
@@ -67,6 +68,7 @@ export const planetMarket= pgTable("planet_market", {
 export const shipsRelations = relations(ships, ({ one, many }) => ({
   player: one(players, { fields: [ships.playerId], references: [players.id] }),
   currentPlanet: one(planets, { fields: [ships.currentPlanetId], references: [planets.id] }),
+  departurePlanet: one(planets, { fields: [ships.departurePlanetId], references: [planets.id] }),
   destinationPlanet: one(planets, { fields: [ships.destinationPlanetId], references: [planets.id] }),
   cargo: many(shipCargo),
 }));

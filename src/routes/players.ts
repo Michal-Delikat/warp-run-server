@@ -9,7 +9,6 @@ import { requireAuth } from "../middleware/auth.ts";
 const router = Router();
 
 router.get("/me", requireAuth, async (req, res) => {
-    console.log(req.playerId);
   const [player] = await db
     .select({ id: players.id, username: players.username, cash: players.cash })
     .from(players)
@@ -54,7 +53,7 @@ router.post("/players", async (req, res) => {
 
     res.status(201).json(newPlayer);
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({ error: "Unable to create player" });
   }
 });

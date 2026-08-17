@@ -57,7 +57,7 @@ router.post<{ id: string }>("/ships/:id/travel", requireAuth, async(req, res) =>
       Math.pow(destPlanet.positionY - currentPlanet.positionY, 2)
     );
 
-    const SUBLIGHT_SPEED = 1.5;
+    const SUBLIGHT_SPEED = 6;
 
     const travelSeconds = distance / SUBLIGHT_SPEED;
 
@@ -67,6 +67,8 @@ router.post<{ id: string }>("/ships/:id/travel", requireAuth, async(req, res) =>
     const [updatedShip] = await db
       .update(ships)
       .set({
+        currentPlanetId: null,
+        departurePlanetId: currentPlanet.id,
         destinationPlanetId: destPlanet.id,
         departedAt: now,
         arrivalAt,

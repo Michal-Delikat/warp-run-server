@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { eq, ne } from "drizzle-orm";
+import { eq, ne, and, sql } from "drizzle-orm";
 import { db } from "../db/index.ts";
-import { planets, planetMarket } from "../db/schema.ts";
+import { planets, planetMarket, ships, shipCargo, players } from "../db/schema.ts";
 import { requireAuth } from "../middleware/auth.ts";
 
 const router = Router();
@@ -42,5 +42,172 @@ router.get<{ id: string }>("/planets/:id/market", requireAuth, async (req, res) 
 
     res.json(planetMarketData);
 });
+
+router.post<{ id: string }>("/planets/:id/market/buy", requireAuth, async (req, res) => {
+    const planetId = req.params.id;
+    const { resourceId, quantity, shipId } = req.body;
+
+    if (!resourceId  || !quantity || !shipId) {
+        return res.status(400).json({ error: "resourceId, quantity and shipId is required" });
+    }
+
+    try {
+        const result = await db.transaction(async (tx) => {
+            const [ship] = await tx.select().from(ships).where(eq(ships.id, shipId));
+
+            if (!ship || ship.playerId !== req.playerId) {
+                throw { status: 403, message: "This ship does not belong to you" };
+            }
+            if (ship.currentPlanetId !== planetId) {
+                throw { status: 409, message: "Ship is not on this planet" };
+            }
+
+            const [market] = await tx
+                .select()
+                .from(planetMarket)
+                .where(and(eq(planetMarket.planetId, planetId), eq(planetMarket.resourceId, resourceId)));
+
+            if (!market || market.stock < quantity) {
+                throw { status: 409, message: "Not enought resource on the planet" };
+            }
+
+            const newStock = market.stock - quantity;
+            const totalCost = market.price * quantity;
+
+            const [player] = await tx
+                .select()
+                .from(players)
+                .where(eq(players.id, req.playerId));
+
+            if (player.cash! < totalCost) {
+                throw { status: 409, message: "Not enough cash" };
+            }
+
+            const [cargoUsage] = await tx
+                .select({ total: sql<number>`coalesce(sum(${shipCargo.quantity}), 0)` })
+                .from(shipCargo)
+                .where(eq(shipCargo.shipId, shipId));
+
+            const usedCapacity = Number(cargoUsage.total);
+
+            if (usedCapacity + quantity > ship.cargoCapacity) {
+                throw {
+                    status: 409,
+                    message: "Not enough cargo space"
+                }
+            }
+
+            await tx
+                .update(planetMarket)
+                .set({ stock: newStock })
+                .where(eq(planetMarket.id, market.id));
+
+            await tx
+                .update(players)
+                .set({ cash: player.cash! - totalCost })
+                .where(eq(players.id, player.id));
+
+            const [existingCargo] = await tx
+                .select()
+                .from(shipCargo)
+                .where(and(eq(shipCargo.shipId, shipId), eq(shipCargo.resourceId, resourceId)));
+
+            if (existingCargo) {
+                await tx
+                    .update(shipCargo)
+                    .set({ quantity: existingCargo.quantity + quantity })
+                    .where(eq(shipCargo.id, existingCargo.id));
+            } else {
+                await tx.insert(shipCargo).values({ shipId, resourceId, quantity });
+            }
+
+            return { totalCost, newStock };
+        });
+
+        res.json(result);
+    } catch (error: any) {
+        console.error(error);
+        if (error.status) {
+            return res.status(error.status).json({ error: error.message });
+        }
+        res.status(500).json({ error: "Purchase was unsuccesful"});
+    }
+});
+
+router.post<{ id: string}>("/planets/:id/market/sell", requireAuth, async (req, res) => {
+    const planetId = req.params.id;
+    const { resourceId, quantity, shipId } = req.body;
+
+    if (!resourceId  || !quantity || !shipId) {
+        return res.status(400).json({ error: "resourceId, quantity and shipId is required" });
+    }
+
+    try {
+        const result = await db.transaction(async (tx) => {
+            const [ship] = await tx.select().from(ships).where(eq(ships.id, shipId));
+
+            if (!ship || ship.playerId !== req.playerId) {
+                throw { status: 403, message: "This ship does not belong to you" };
+            }
+            if (ship.currentPlanetId !== planetId) {
+                throw { status: 409, message: "Ship is not on this planet" };
+            }
+
+            const [existingCargo] = await tx
+                .select()
+                .from(shipCargo)
+                .where(and(eq(shipCargo.shipId, shipId), eq(shipCargo.resourceId, resourceId)));
+
+            if (!existingCargo || existingCargo.quantity < quantity) {
+                throw { status: 409, message: "You don't have enough resource"}
+            }
+
+            const [market] = await tx
+                .select()
+                .from(planetMarket)
+                .where(and(eq(planetMarket.planetId, planetId), eq(planetMarket.resourceId, resourceId)));
+
+            const newStock = market.stock + quantity;
+            const totalCost = market.price * quantity;
+
+            const [player] = await tx
+                .select()
+                .from(players)
+                .where(eq(players.id, req.playerId));
+
+            await tx
+                .update(planetMarket)
+                .set({ stock: newStock })
+                .where(eq(planetMarket.id, market.id));
+
+            await tx
+                .update(players)
+                .set({ cash: player.cash! + totalCost })
+                .where(eq(players.id, player.id));
+
+            if (existingCargo.quantity - quantity > 0) {
+                await tx
+                    .update(shipCargo)
+                    .set({ quantity: existingCargo.quantity - quantity })
+                    .where(eq(shipCargo.id, existingCargo.id));
+            } else {
+                await tx
+                    .delete(shipCargo)
+                    .where(eq(shipCargo.id, existingCargo.id));
+            }
+
+            return {totalCost, newStock };
+        });
+
+        res.json(result);
+    } catch (error: any) {
+        console.error(error);
+        if (error.status) {
+            return res.status(error.status).json({ error: error.message });
+        }
+        res.status(500).json({ error: "Sell was unsuccesful"});
+    }
+})
+
 
 export default router;
