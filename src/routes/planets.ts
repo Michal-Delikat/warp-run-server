@@ -72,6 +72,8 @@ router.post<{ id: string }>("/planets/:id/market/buy", requireAuth, async (req, 
             }
 
             const newStock = market.stock - quantity;
+            const priceIncreaseFactor = 1 + (quantity / market.baseStock);
+            const newPrice = Math.ceil(market.price * priceIncreaseFactor);
             const totalCost = market.price * quantity;
 
             const [player] = await tx
@@ -99,7 +101,7 @@ router.post<{ id: string }>("/planets/:id/market/buy", requireAuth, async (req, 
 
             await tx
                 .update(planetMarket)
-                .set({ stock: newStock })
+                .set({ stock: newStock, price: newPrice })
                 .where(eq(planetMarket.id, market.id));
 
             await tx
@@ -121,7 +123,7 @@ router.post<{ id: string }>("/planets/:id/market/buy", requireAuth, async (req, 
                 await tx.insert(shipCargo).values({ shipId, resourceId, quantity });
             }
 
-            return { totalCost, newStock };
+            return { totalCost, newPrice, newStock };
         });
 
         res.json(result);
@@ -168,6 +170,8 @@ router.post<{ id: string}>("/planets/:id/market/sell", requireAuth, async (req, 
                 .where(and(eq(planetMarket.planetId, planetId), eq(planetMarket.resourceId, resourceId)));
 
             const newStock = market.stock + quantity;
+            const priceDecreaseFactor = 1 - (quantity / market.baseStock);
+            const newPrice = Math.floor(market.price * priceDecreaseFactor);
             const totalCost = market.price * quantity;
 
             const [player] = await tx
@@ -177,7 +181,7 @@ router.post<{ id: string}>("/planets/:id/market/sell", requireAuth, async (req, 
 
             await tx
                 .update(planetMarket)
-                .set({ stock: newStock })
+                .set({ stock: newStock, price: newPrice })
                 .where(eq(planetMarket.id, market.id));
 
             await tx
@@ -196,7 +200,7 @@ router.post<{ id: string}>("/planets/:id/market/sell", requireAuth, async (req, 
                     .where(eq(shipCargo.id, existingCargo.id));
             }
 
-            return {totalCost, newStock };
+            return {totalCost, newPrice, newStock };
         });
 
         res.json(result);

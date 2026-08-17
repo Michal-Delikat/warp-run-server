@@ -14,6 +14,7 @@ router.get("/me/ships", requireAuth, async (req, res) => {
     where: eq(ships.playerId, req.playerId!),
     with: {
       currentPlanet:              { columns: { id: true, name: true } },
+      departurePlanet:            { columns: { id: true, name: true } },
       destinationPlanet:          { columns: { id: true, name: true } },
       cargo: { with: { resource:  { columns: { id: true, name: true } } } },
     },
