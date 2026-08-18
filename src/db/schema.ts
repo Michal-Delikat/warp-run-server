@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, integer, timestamp, unique } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, integer, timestamp, unique, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 /* Tables */
@@ -67,6 +67,7 @@ export const planets = pgTable("planets", {
     id: uuid("id").primaryKey().defaultRandom(),
     name: varchar("name", { length: 100 }). notNull().unique(),
     starSystemId: uuid("star_system_id").notNull().references(() => starSystems.id, { onDelete: "cascade" }),
+    orbitalParentId: uuid("orbital_parent_id").references((): AnyPgColumn => planets.id),
     orbitalDistance: integer("orbital_distance").notNull(),
     orbitalAngle: integer("orbital_angle").notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),

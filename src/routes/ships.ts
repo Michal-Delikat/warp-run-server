@@ -14,6 +14,7 @@ interface Planet {
   id: string;
   orbitalAngle: number;
   orbitalDistance: number;
+  orbitalParentId: string | null;
 }
 
 function getSystemGlobalPosition(system: StarSystem) {
@@ -24,14 +25,37 @@ function getSystemGlobalPosition(system: StarSystem) {
   };
 }
 
-function getPlanetGlobalPosition(planet: Planet, system: StarSystem) {
-  const systemPos = getSystemGlobalPosition(system);
+function getPlanetGlobalPosition(planet: Planet, allPlanets: Planet[], system: StarSystem): { x: number; y: number } {
+  const angleRad = (planet.orbitalAngle * Math.PI) / 180;
 
-  const planetAngleRad = (planet.orbitalAngle * Math.PI) / 180;
+  const parentPosition = planet.orbitalParentId
+    ? getPlanetGlobalPosition(
+        allPlanets.find(p => p.id === planet.orbitalParentId)!,
+        allPlanets,
+        system
+      )
+    : getSystemGlobalPosition(system);
+
   return {
-    x: systemPos.x + planet.orbitalDistance * Math.cos(planetAngleRad),
-    y: systemPos.y + planet.orbitalDistance * Math.sin(planetAngleRad),
+    x: parentPosition.x + planet.orbitalDistance * Math.cos(angleRad),
+    y: parentPosition.y + planet.orbitalDistance * Math.sin(angleRad),
   };
+}
+
+function distanceBetweenPlanets(
+  planetA: Planet, 
+  planetB: Planet, 
+  allPlanets: Planet[], 
+  systemA: StarSystem, 
+  systemB: StarSystem
+): number {
+  const posA = getPlanetGlobalPosition(planetA, allPlanets, systemA);
+  const posB = getPlanetGlobalPosition(planetB, allPlanets, systemB);
+
+  return Math.sqrt(
+    Math.pow(posB.x - posA.x, 2) + 
+    Math.pow(posB.y - posA.y, 2)
+  );
 }
 
 const router = Router();
@@ -74,24 +98,21 @@ router.post<{ id: string }>("/ships/:id/travel", requireAuth, async (req, res) =
     if (!ship.currentPlanetId) {
       return res.status(409).json({ error: "Ship is already travelling "});
     }
+
+    const allPlanets = await db.select().from(planets);
+    const allSystems = await db.select().from(starSystems);
     
-    const [currentPlanet] = await db.select().from(planets).where(eq(planets.id, ship.currentPlanetId));
-    const [destinationPlanet] = await db.select().from(planets).where(eq(planets.id, destinationPlanetId!));
+    const currentPlanet = allPlanets.find(s => s.id === ship.currentPlanetId)!;
+    const destinationPlanet = allPlanets.find(s => s.id === destinationPlanetId)!;
     
     if (!destinationPlanet) {
       return res.status(404).json({ error: "Destitation planet does not exist"});
     }
     
-    const [currentStarSystem] = await db.select().from(starSystems).where(eq(starSystems.id, currentPlanet.starSystemId));
-    const [destinationStarSystem] = await db.select().from(starSystems).where(eq(starSystems.id, destinationPlanet.starSystemId));
+    const currentStarSystem = allSystems.find(s => s.id === currentPlanet.starSystemId)!;
+    const destinationStarSystem = allSystems.find(s => s.id === destinationPlanet.starSystemId)!;
 
-    const { x: x_current, y: y_current } = getPlanetGlobalPosition(currentPlanet, currentStarSystem);
-    const { x: x_destination, y: y_destination } = getPlanetGlobalPosition(destinationPlanet, destinationStarSystem);
-
-    const distance = Math.sqrt(
-      Math.pow(x_current - x_destination, 2) +
-      Math.pow(y_current - y_destination, 2)
-    );
+    const distance = distanceBetweenPlanets(currentPlanet, destinationPlanet, allPlanets, currentStarSystem, destinationStarSystem);
 
     const SUBLIGHT_SPEED = 10000;
 
