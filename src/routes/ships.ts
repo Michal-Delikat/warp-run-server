@@ -1,9 +1,38 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
-import { ships, planets } from "../db/schema.ts";
+import { ships, planets, starSystems } from "../db/schema.ts";
 import { requireAuth } from "../middleware/auth.ts"; 
 import { resolveArrivedShips } from "../db/resolveArrivals.ts";
+
+interface StarSystem {
+  orbitalDistance: number;
+  orbitalAngle: number;
+}
+
+interface Planet {
+  id: string;
+  orbitalAngle: number;
+  orbitalDistance: number;
+}
+
+function getSystemGlobalPosition(system: StarSystem) {
+  const angleRad = (system.orbitalAngle * Math.PI) / 180;
+  return {
+    x: system.orbitalDistance * Math.cos(angleRad),
+    y: system.orbitalDistance * Math.sin(angleRad),
+  };
+}
+
+function getPlanetGlobalPosition(planet: Planet, system: StarSystem) {
+  const systemPos = getSystemGlobalPosition(system);
+
+  const planetAngleRad = (planet.orbitalAngle * Math.PI) / 180;
+  return {
+    x: systemPos.x + planet.orbitalDistance * Math.cos(planetAngleRad),
+    y: systemPos.y + planet.orbitalDistance * Math.sin(planetAngleRad),
+  };
+}
 
 const router = Router();
 
@@ -47,15 +76,21 @@ router.post<{ id: string }>("/ships/:id/travel", requireAuth, async(req, res) =>
     }
     
     const [currentPlanet] = await db.select().from(planets).where(eq(planets.id, ship.currentPlanetId));
-    const [destPlanet] = await db.select().from(planets).where(eq(planets.id, destinationPlanetId));
-
-    if (!destPlanet) {
+    const [destinationPlanet] = await db.select().from(planets).where(eq(planets.id, destinationPlanetId!));
+    
+    if (!destinationPlanet) {
       return res.status(404).json({ error: "Destitation planet does not exist"});
     }
+    
+    const [currentStarSystem] = await db.select().from(starSystems).where(eq(starSystems.id, currentPlanet.starSystemId));
+    const [destinationStarSystem] = await db.select().from(starSystems).where(eq(starSystems.id, destinationPlanet.starSystemId));
+
+    const { x: x_current, y: y_current } = getPlanetGlobalPosition(currentPlanet, currentStarSystem);
+    const { x: x_destination, y: y_destination } = getPlanetGlobalPosition(destinationPlanet, destinationStarSystem);
 
     const distance = Math.sqrt(
-      Math.pow(destPlanet.positionX - currentPlanet.positionX, 2) +
-      Math.pow(destPlanet.positionY - currentPlanet.positionY, 2)
+      Math.pow(x_current - x_destination, 2) +
+      Math.pow(y_current - y_destination, 2)
     );
 
     const SUBLIGHT_SPEED = 6;
@@ -70,7 +105,7 @@ router.post<{ id: string }>("/ships/:id/travel", requireAuth, async(req, res) =>
       .set({
         currentPlanetId: null,
         departurePlanetId: currentPlanet.id,
-        destinationPlanetId: destPlanet.id,
+        destinationPlanetId: destinationPlanet.id,
         departedAt: now,
         arrivalAt,
       })
