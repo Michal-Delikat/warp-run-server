@@ -73,7 +73,7 @@ router.post<{ id: string }>("/planets/:id/market/buy", requireAuth, async (req, 
 
             const newStock = market.stock - quantity;
             const priceChangeFactor = 1 + (quantity / Math.max(newStock, 1));
-            const newPrice = Math.ceil(market.price * priceChangeFactor);
+            const newPrice = Math.max(1, Math.ceil(market.price * priceChangeFactor));
             const totalCost = quantity * market.price;
 
             const [player] = await tx
@@ -170,8 +170,8 @@ router.post<{ id: string}>("/planets/:id/market/sell", requireAuth, async (req, 
                 .where(and(eq(planetMarket.planetId, planetId), eq(planetMarket.resourceId, resourceId)));
 
             const newStock = market.stock + quantity;
-            const priceDecreaseFactor = 1 - (quantity / market.baseStock);
-            const newPrice = Math.floor(market.price * priceDecreaseFactor);
+            const priceDecreaseFactor = 1 - (quantity / newStock);
+            const newPrice = Math.max(1, Math.floor(market.price * priceDecreaseFactor));
             const totalCost = market.price * quantity;
 
             const [player] = await tx
