@@ -72,9 +72,9 @@ router.post<{ id: string }>("/planets/:id/market/buy", requireAuth, async (req, 
             }
 
             const newStock = market.stock - quantity;
-            const priceIncreaseFactor = 1 + (quantity / market.baseStock);
-            const newPrice = Math.ceil(market.price * priceIncreaseFactor);
-            const totalCost = market.price * quantity;
+            const priceChangeFactor = 1 + (quantity / Math.max(newStock, 1));
+            const newPrice = Math.ceil(market.price * priceChangeFactor);
+            const totalCost = quantity * market.price;
 
             const [player] = await tx
                 .select()

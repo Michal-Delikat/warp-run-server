@@ -52,7 +52,7 @@ router.get("/me/ships", requireAuth, async (req, res) => {
   res.json(playerShips);
 });
 
-router.post<{ id: string }>("/ships/:id/travel", requireAuth, async(req, res) => {
+router.post<{ id: string }>("/ships/:id/travel", requireAuth, async (req, res) => {
   const shipId = req.params.id;
   const { destinationPlanetId } = req.body;
 
@@ -93,7 +93,7 @@ router.post<{ id: string }>("/ships/:id/travel", requireAuth, async(req, res) =>
       Math.pow(y_current - y_destination, 2)
     );
 
-    const SUBLIGHT_SPEED = 6;
+    const SUBLIGHT_SPEED = 10000;
 
     const travelSeconds = distance / SUBLIGHT_SPEED;
 
@@ -120,6 +120,43 @@ router.post<{ id: string }>("/ships/:id/travel", requireAuth, async(req, res) =>
   } catch(err) {
     console.error(err);
     res.status(500).json({ error: "Travel was unsuccesfull"});
+  }
+});
+
+router.post<{ id: string }>("/ships/:id/jump", requireAuth, async (req, res) => {
+  const shipId = req.params.id;
+
+  try {
+    const [ship] = await db.select().from(ships).where(eq(ships.id, shipId));
+
+    if (!ship) {
+      return res.status(404).json({ error: "Ship not found" });
+    }
+
+    if (ship.currentPlanetId) {
+      return res.status(409).json({ error: "Ship is not in transit" });
+    }
+
+    if (!ship.destinationPlanetId) {
+      return res.status(409).json({ error: "Ship destination is unknown" });
+    }
+
+    await db
+      .update(ships)
+      .set({
+        currentPlanetId: ship.destinationPlanetId,
+        departurePlanetId: null,
+        destinationPlanetId: null,
+        departedAt: null,
+        arrivalAt: null
+      });
+
+    res.json({
+      currentPlanetId: ship.destinationPlanetId
+    });
+  } catch(error) {
+    console.error(error);
+    res.status(500).json({ error: "Jump was unsuccesfull"});
   }
 });
 
