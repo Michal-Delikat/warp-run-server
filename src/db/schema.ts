@@ -74,6 +74,14 @@ export const planets = pgTable("planets", {
     createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const agents = pgTable("agents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  playerId: uuid("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  planetId: uuid("planet_id").notNull().references(() => planets.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 100 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 /* Relations */
 
 export const shipsRelations = relations(ships, ({ one, many }) => ({
@@ -97,4 +105,9 @@ export const planetMarketRelations = relations(planetMarket, ({ one }) => ({
 export const planetsRelations = relations(planets, ({ one, many }) => ({
     starSystem: one(starSystems, { fields: [planets.starSystemId], references: [starSystems.id] }),
     market: many(planetMarket),
+}));
+
+export const agentsRelations = relations(agents, ({ one }) => ({
+  player: one(players, { fields: [agents.playerId], references: [players.id] }),
+  planet: one(planets, { fields: [agents.planetId], references: [planets.id] }),
 }));
