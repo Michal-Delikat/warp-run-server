@@ -14,7 +14,7 @@ export const players = pgTable("players", {
 
 export const ships = pgTable("ships", {
     id: uuid("id").primaryKey().defaultRandom(),
-    playerId: uuid("player_id").notNull().references(() => players.id),
+    playerId: uuid("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 100 }).notNull(),
 
     currentPlanetId: uuid("current_planet_id").references(() => planets.id),
@@ -40,9 +40,8 @@ export const shipCargo = pgTable("ship_cargo", {
     shipId: uuid("ship_id").notNull().references(() => ships.id, { onDelete: "cascade" }),
     resourceId: uuid("resource_id").notNull().references(() => resources.id, { onDelete: "cascade" }),
     quantity: integer("quantity").notNull().default(0),
-}, (table) => ({
-    uniqueShipResource: unique().on(table.shipId, table.resourceId),
-}));
+}, (table) => [unique().on(table.shipId, table.resourceId)]
+);
 
 export const planetMarket= pgTable("planet_market", {
     id: uuid("id").primaryKey().defaultRandom(),
@@ -52,9 +51,7 @@ export const planetMarket= pgTable("planet_market", {
     stock: integer("stock").notNull(),
     baseStock: integer("base_stock").notNull(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
-}, (table) => ({
-    uniquePlanetResource: unique().on(table.planetId, table.resourceId),
-}));
+}, (table) => [unique().on(table.planetId, table.resourceId)]);
 
 export const starSystems = pgTable("star_systems", {
     id: uuid("id").primaryKey().defaultRandom(),
