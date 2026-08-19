@@ -3,6 +3,7 @@ import { eq, ne, and, sql } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { planets, planetMarket, ships, shipCargo, players } from "../db/schema.ts";
 import { requireAuth } from "../middleware/auth.ts";
+import { resolveMarketRegeneration } from "../db/resolveMarketRegeneration.ts";
 
 const router = Router();
 
@@ -26,7 +27,9 @@ router.get<{ id: string }>("/planets/:id/neighbors", requireAuth, async (req, re
 });
 
 router.get<{ id: string }>("/planets/:id/market", requireAuth, async (req, res) => {
-    const planetId = req.params.id
+    const planetId = req.params.id;
+    await resolveMarketRegeneration(planetId);
+
     const planetMarketData = await db.query.planetMarket.findMany({
         where: eq(planetMarket.planetId, planetId),
         with: { 

@@ -51,6 +51,7 @@ export const planetMarket= pgTable("planet_market", {
     price: integer("price").notNull(),
     stock: integer("stock").notNull(),
     baseStock: integer("base_stock").notNull(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => ({
     uniquePlanetResource: unique().on(table.planetId, table.resourceId),
 }));
